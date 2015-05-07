@@ -1,4 +1,4 @@
-function WebSocketFileUploader(file_container, block_size) 
+function WebSocketFileUploader(file_container, block_size)
 {
 
   // Initialize
@@ -27,7 +27,7 @@ function WebSocketFileUploader(file_container, block_size)
   var file_reupload_button = $('.file_reupload_button',file_container);
   var file_name_input = $('.file_name_input', file_container);
   var file_buttons = $(':button',file_container);
-  
+
 
   // Privileged
 
@@ -50,7 +50,7 @@ function WebSocketFileUploader(file_container, block_size)
 
   // Private
 
-  function reset_upload() 
+  function reset_upload()
   {
     file_buttons.hide();
     file_browse_button.show();
@@ -61,20 +61,20 @@ function WebSocketFileUploader(file_container, block_size)
     file_progress_bar.progressbar({value:0});
   }
 
-  function error(message) 
+  function error(message)
   {
     reset_upload();
     file_information.html(message);
   }
-  
-  function supported() 
+
+  function supported()
   {
     if (window.File && window.FileReader && window.FileList && window.Blob) return true;
     error('File APIs are not fully supported in this browser.');
     return false;
   }
 
-  function onabort(event) 
+  function onabort(event)
   {
     error('File upload aborted');
     reader.abort();
@@ -99,15 +99,14 @@ function WebSocketFileUploader(file_container, block_size)
 
   function deliver_slice(data)
   {
-    var edata = window.btoa(data);
-    return wsc.send("upload=>"+edata);
+    return wsc.send("upload=>" + window.btoa(data));
   }
 
   function calculate_eta()
   {
     var delta_ms = Date.now() - start_time;
-    var rate = (file_index- start_file_index) / delta_ms; 
-    var remaining_ms = (file.size - file_index) / rate; 
+    var rate = (file_index- start_file_index) / delta_ms;
+    var remaining_ms = (file.size - file_index) / rate;
     var delta_hr = parseInt(Math.floor(remaining_ms/3600000));
     remaining_ms -= delta_hr*3600000;
     var delta_min = parseInt(Math.floor(remaining_ms/60000));
@@ -118,16 +117,16 @@ function WebSocketFileUploader(file_container, block_size)
     if (delta_sec>0) eta = delta_sec + " secs";
     if (delta_min>0) eta = delta_min + " mins";
     if (delta_hr>0) eta = delta_hr + " hours";
-    if (delta_ms>5000) file_progress.html(eta);  
+    if (delta_ms>5000) file_progress.html(eta);
   }
-  
+
   function update_progress_bar()
   {
     var progress = Math.floor(100 * file_index / file.size);
     file_progress_bar.progressbar({value: progress});
   }
 
-  function read_slice(start, length) 
+  function read_slice(start, length)
   {
     reader = new FileReader();
 
@@ -135,15 +134,13 @@ function WebSocketFileUploader(file_container, block_size)
     reader.onerror = onerror;
     reader.onloadend = onloadend;
 
-    var stop = start + length - 1;
-    if (stop>(file.size-1)) stop=file.size-1;
-    var corrected_length =  (stop - start) + 1;
-    var blob = file.slice(start, corrected_length);
+    var stop = start + length;
+    var blob = file.slice(start, stop);
     reader.readAsBinaryString(blob);
   }
 
-  function onloadend(event) 
-  { 
+  function onloadend(event)
+  {
 
     // Deliver block
     if (deliver_slice(event.target.result) == false) {
@@ -167,7 +164,7 @@ function WebSocketFileUploader(file_container, block_size)
     }
   }
 
-  function begin_upload() 
+  function begin_upload()
   {
     file_buttons.hide();
     file_pause_button.show();
@@ -180,10 +177,10 @@ function WebSocketFileUploader(file_container, block_size)
     if (paused_upload) {
       paused_upload = false;
     } else {
-      var result = wsc.send("command=>upload||"+file.name+"||"+file.size+"||"+file_index);   
+      var result = wsc.send("command=>upload||"+file.name+"||"+file.size+"||"+file_index);
       if (!result) error('Failed to send data to server');
     }
-  
+
     read_slice(file_index, block_size);
   }
 
@@ -192,7 +189,7 @@ function WebSocketFileUploader(file_container, block_size)
     // Get the filename from the input field
     if (file_name_input == undefined) {
       error('No filename input in DOM');
-      return false;  
+      return false;
     }
     var files = file_name_input[0].files;
     if (files.length == 0) {
@@ -202,8 +199,8 @@ function WebSocketFileUploader(file_container, block_size)
     file = files[0];
     return file.name;
   }
-  
-  function handle_file_exists_response(size) 
+
+  function handle_file_exists_response(size)
   {
     file_index = size;
     file_buttons.hide();
@@ -212,12 +209,12 @@ function WebSocketFileUploader(file_container, block_size)
     if (file_index<file.size) {
       file_resume_button.show();
       file_progress.html('Upload incomplete');
-    } else {    
+    } else {
       file_progress.html('File exists');
     }
     update_progress_bar();
   }
-  
+
   function receive_message(message)
   {
     var args = message.data.split(/=>/);
@@ -237,13 +234,13 @@ function WebSocketFileUploader(file_container, block_size)
 
         if (!paused_upload && !cancelled_upload && file_index<file.size) {
           read_slice(file_index, block_size);
-        }	
-    
+        }
+
 		    // User paused upload
 		    if (paused_upload) file_progress.html('');
 
 		    // User cancelled upload
-		    if (cancelled_upload) {    
+		    if (cancelled_upload) {
 		      reset_upload();
 		      file_progress.html('');
 		      uploader.upload_cancelled();
@@ -252,9 +249,9 @@ function WebSocketFileUploader(file_container, block_size)
       }
     }
 
-    // handle errors from server      
+    // handle errors from server
     if (control.match(/^error$/i)) {
-      error(args[0]);           
+      error(args[0]);
     }
   }
 
@@ -264,12 +261,12 @@ function WebSocketFileUploader(file_container, block_size)
   }
 
   function connect_websocket()
-  {  
+  {
     if (!file_selected()) return false;
 
     if (!wsc) {
       host = "ws://"+window.location.host.match(/^.*(?=[:$])/)[0]+":8080/";
-      wsc = new WebSocketClient(host);   
+      wsc = new WebSocketClient(host);
       if (!wsc.initialize()) {
 	      error('Failed to connect to websocket server at '+host);
 	      return false;
@@ -287,24 +284,24 @@ function WebSocketFileUploader(file_container, block_size)
     // Start upload button
      file_upload_button.bind('click', {uploader: this}, function (e) {
       begin_upload();
-      return false; 
+      return false;
     });
 
     // Reupload button
      file_reupload_button.bind('click', {uploader: this}, function (e) {
       file_index = 0;
       begin_upload();
-      return false; 
+      return false;
     });
 
     // Select file button
-    file_browse_button.bind('click', {uploader: this}, function (e) { 
+    file_browse_button.bind('click', {uploader: this}, function (e) {
       file_name_input.click();
       return false;
     });
 
     // Cancel upload button
-    file_cancel_button.bind('click', {uploader: this}, function (e) { 
+    file_cancel_button.bind('click', {uploader: this}, function (e) {
       reset_upload();
       file_progress.html('');
       cancelled_upload=true;
@@ -312,7 +309,7 @@ function WebSocketFileUploader(file_container, block_size)
     });
 
     // Pause upload button
-    file_pause_button.bind('click', {uploader: this}, function (e) { 
+    file_pause_button.bind('click', {uploader: this}, function (e) {
       paused_upload=true;
       file_cancel_button.hide();
       file_pause_button.hide();
@@ -322,7 +319,7 @@ function WebSocketFileUploader(file_container, block_size)
     });
 
     // Resume upload button
-    file_resume_button.bind('click', {uploader: this}, function (e) { 
+    file_resume_button.bind('click', {uploader: this}, function (e) {
       begin_upload();
       return false;
     });
